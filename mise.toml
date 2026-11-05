@@ -1,0 +1,22 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+[tools]
+zig = "0.17.0"
+
+[tasks.build]
+description = "Build the standalone binary"
+run = "zig build -Doptimize=small"
+
+[tasks.test]
+description = "Run tests using a private pasteboard"
+run = "zig build test"
+
+[tasks.fmt]
+description = "Format Zig sources"
+run = "zig fmt build.zig src"
+
+[tasks.test-unit]
+description = "Run tests without access to the pasteboard service"
+run = "zig build test-unit"
