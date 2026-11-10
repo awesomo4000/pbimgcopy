@@ -1,31 +1,57 @@
-# PBIMGCOPY(1)
+# PBIMGCOPY(1), PBIMGPASTE(1), PBLIST(1)
 
 ## NAME
 
-pbimgcopy - copy an image to the macOS clipboard
+pbimgcopy, pbimgpaste, pblist - image clipboard utilities for macOS
 
 ## SYNOPSIS
 
 ```text
-pbimgcopy [--] file
-pbimgcopy [-] < file
-pbimgcopy -h | --help
+pbimgcopy  [--pasteboard name] [--] file
+pbimgcopy  [--pasteboard name] [-] < file
+pbimgpaste [--pasteboard name] > file
+pblist     [--pasteboard name]
+pblist     --formats
 ```
 
 ## DESCRIPTION
 
-Copies an image from a file or standard input to the clipboard.
-Preserves the original bytes and format. Does not resize or convert.
+`pbimgcopy` replaces the clipboard with an image read from a file or
+standard input. Accepts formats recognized by macOS ImageIO, including
+WebP, HEIC, AVIF, and camera RAW where supported.
 
-Accepts formats recognized by macOS ImageIO. The receiving application
-must support the image format. Input is held in memory.
+`pbimgpaste` writes the first available image representation to standard
+output, in pasteboard order. Refuses terminal output. Fails if no image
+is present. Does not alter the clipboard.
+
+`pblist` reports the general, find, font, and ruler pasteboards. Output is
+tab-separated: PASTEBOARD, ITEM, TYPE, BYTES. Each representation occupies
+one row. An item may have several representations. Empty boards show `-`
+for item and type; unreadable data shows `?` for bytes. Lists all supplied
+types, including text, RTF, EPS, and application-defined data.
+
+Image bytes and format are preserved. No resizing or conversion.
+Representations marked as system conversions are skipped. Check the type
+with `pblist`; a filename extension does not select a format.
+
+`pblist --formats` lists this Mac's ImageIO readers as TYPE, EXTENSION,
+and MIME; `-` denotes unavailable type metadata. This is the image input
+catalog, not a whitelist for clipboard inspection. Formats vary by macOS
+version. EPS and RTF are listed when present, not accepted as image input.
 
 ## OPTIONS
 
 ```text
--           Read standard input. This is the default when no file is given.
---          Treat the next argument as a filename.
--h, --help  Print usage.
+--pasteboard name  Use the named pasteboard. Must precede other arguments.
+                   For pblist, list only this board.
+-h, --help         Print usage.
+```
+
+For `pbimgcopy` only:
+
+```text
+-                  Read standard input. Default when no file is given.
+--                 Treat the next argument as a filename.
 ```
 
 ## EXIT STATUS
@@ -35,28 +61,51 @@ must support the image format. Input is held in memory.
 ## EXAMPLES
 
 ```sh
-pbimgcopy image.png
-cat photo.jpg | pbimgcopy
-pbimgcopy -- -image.png
+pbimgcopy < image.png
+pblist
+pbimgpaste > copy.png
+cmp image.png copy.png
+
+cat photo.jpg | pbimgcopy -
+pbimgpaste > copy.jpg
+pblist --formats
 ```
 
 ## INSTALLATION
 
-Requires macOS. Building requires Zig 0.17.0 and Apple Command Line Tools.
+macOS only. Build with Zig 0.17.0 and Apple Command Line Tools.
+No third-party runtime dependencies.
 
 ```sh
 mise trust
 mise install
 mise run build
-install -m 755 zig-out/bin/pbimgcopy /usr/local/bin/pbimgcopy
+install -m 755 zig-out/bin/pbimgcopy zig-out/bin/pbimgpaste zig-out/bin/pblist /usr/local/bin/
 ```
 
 Without mise: `zig build -Doptimize=small`.
 
 ## TESTS
 
-`mise run test` uses a private pasteboard; the clipboard is untouched.
-Requires a desktop session. `mise run test-unit` omits pasteboard access.
+```sh
+mise run test       # full suite
+mise run test-e2e   # copy, list, paste, compare
+mise run test-unit  # no pasteboard access
+```
+
+Pasteboard tests require a desktop session and use isolated boards.
+End-to-end tests check types, byte counts, and exact file contents through
+files, pipes, and redirected input: PNG, JPEG, GIF, TIFF, WebP, BMP, ICO,
+JPEG 2000, PSD, TGA, OpenEXR, HEIC, AVIF, and JPEG XL. Unsupported formats
+are reported as skipped. EPS and RTF listing is tested separately.
+Fixtures are included; no image encoders are needed to run the tests.
+The current clipboard is untouched.
+
+## NOTES
+
+Image data is held in memory. Reading byte counts may ask the owning
+application to supply data. Private pasteboards cannot be enumerated;
+a known name may be supplied explicitly.
 
 ## SEE ALSO
 

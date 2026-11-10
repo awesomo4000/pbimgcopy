@@ -1,5 +1,14 @@
 # Changelog
 
+## 11/10/2026
+
+- Add pbimgpaste to write original clipboard image bytes to stdout.
+- Add pblist to report pasteboard types and byte counts, including EPS and RTF.
+- Add pblist --formats to list installed image readers, extensions, and MIME types.
+- Add --pasteboard to select a named pasteboard in all three tools.
+- Add isolated CLI round trips for 14 image formats through files, pipes, and stdin.
+- Document all three commands in manual-page style.
+
 ## 11/05/2026
 
 - Replace the shell script with a standalone Zig executable using macOS system frameworks.

@@ -6,11 +6,11 @@
 zig = "0.17.0"
 
 [tasks.build]
-description = "Build the standalone binary"
+description = "Build the standalone binaries"
 run = "zig build -Doptimize=small"
 
 [tasks.test]
-description = "Run tests using a private pasteboard"
+description = "Run tests using private pasteboards"
 run = "zig build test"
 
 [tasks.fmt]
@@ -20,3 +20,7 @@ run = "zig fmt build.zig src"
 [tasks.test-unit]
 description = "Run tests without access to the pasteboard service"
 run = "zig build test-unit"
+
+[tasks.test-e2e]
+description = "Test copy, list, and paste as separate processes"
+run = "zig build test-e2e"

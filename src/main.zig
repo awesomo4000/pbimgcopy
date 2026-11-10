@@ -5,10 +5,11 @@
 const std = @import("std");
 const apple = @import("apple.zig");
 const c = @import("c");
+const clipboard = @import("clipboard.zig");
 
 const usage =
-    \\Usage: pbimgcopy [--] <image>
-    \\       pbimgcopy [-] < image
+    \\Usage: pbimgcopy [--pasteboard name] [--] <image>
+    \\       pbimgcopy [--pasteboard name] [-] < image
     \\
     \\Copy original image bytes to the macOS clipboard without conversion.
     \\Use - or omit the filename to read stdin. Use -- before a filename
@@ -64,7 +65,8 @@ const Image = struct {
 fn run(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);
-    const input = try parseArgs(args[1..]);
+    const selection = try clipboard.select(args[1..]);
+    const input = try parseArgs(selection.args);
     if (input == .help) {
         _ = c.fputs(usage, c.stdout());
         return;
@@ -93,11 +95,7 @@ fn run(init: std.process.Init) !void {
     }
     const img = try Image.init(bytes.items);
     defer img.deinit();
-    const name = apple.CFStringCreateWithCString(null, "com.apple.pasteboard.clipboard", apple.utf8) orelse return error.OutOfMemory;
-    defer apple.CFRelease(name);
-    var board: ?apple.Ref = null;
-    if (apple.PasteboardCreate(name, &board) != 0) return error.ClipboardUnavailable;
-    const pasteboard = board orelse return error.ClipboardUnavailable;
+    const pasteboard = try clipboard.named(selection.name);
     defer apple.CFRelease(pasteboard);
     try img.copyTo(pasteboard);
     var type_buffer: [256]u8 = undefined;
@@ -156,12 +154,18 @@ test "clipboard: original formats and bytes survive a private pasteboard round t
         try std.testing.expectEqualStrings(sample[1], std.mem.sliceTo(&type_buffer, 0));
         try std.testing.expectEqual(sample[2], apple.CGImageSourceGetCount(img.source));
         try img.copyTo(pasteboard);
-        var result: ?apple.Ref = null;
-        try std.testing.expectEqual(@as(i32, 0), apple.PasteboardCopyItemFlavorData(pasteboard, 1, img.image_type, &result));
-        const data = result orelse return error.NoClipboardData;
+        const data = try @import("clipboard.zig").image(pasteboard);
         defer apple.CFRelease(data);
         const length: usize = @intCast(apple.CFDataGetLength(data));
         try std.testing.expectEqualSlices(u8, sample[0], apple.CFDataGetBytePtr(data)[0..length]);
+        const file = c.tmpfile() orelse return error.CannotOpenFile;
+        defer _ = c.fclose(file);
+        try @import("clipboard.zig").writeData(file, data);
+        c.rewind(file);
+        const saved = try std.testing.allocator.alloc(u8, length + 1);
+        defer std.testing.allocator.free(saved);
+        const read = c.fread(saved.ptr, 1, saved.len, file);
+        try std.testing.expectEqualSlices(u8, sample[0], saved[0..read]);
     }
 }
 
